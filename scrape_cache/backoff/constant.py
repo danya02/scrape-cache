@@ -1,9 +1,9 @@
-from .base import FalloffController
+from .base import BackoffController
 import datetime
 
-class ConstantFalloffController(FalloffController):
+class ConstantBackoffController(FalloffController):
     """
-    Falloff controller with a constant delay.
+    Backoff controller with a constant delay.
     The delay is provided at initialization, by default it is 5 seconds.
     """
 

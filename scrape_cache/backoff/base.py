@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
-class FalloffController(ABC):
+class BackoffController(ABC):
     """
-    Class that represents a falloff function.
+    Class that represents a backoff function.
     This is used to determine the time to wait until a task is rescheduled.
     """
 
