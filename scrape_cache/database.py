@@ -1,5 +1,7 @@
 import peewee as pw
 import datetime
+import os
+import uuid
 
 dbase = pw.SqliteDatabase('cache.db')
 
@@ -13,14 +15,14 @@ def table(cls):
 
 @table
 class Domain(MyModel):
-    base_url = pw.CharField(help_text='https://example.com')
+    base_url = pw.CharField(help_text='https://example.com', unique=True)
 
 @table
 class CachedRequest(MyModel):
     method = pw.CharField(max_length=16, help_text='HTTP verb (GET, POST, ...)')
     domain = pw.ForeignKeyField(Domain)
     resource = pw.CharField(help_text='/hello/world.png?variant=5')
-    request_body = pw.BlobField()
+    request_body = pw.BlobField(null=True)
     request_headers = pw.JSONField()
 
     access_time = pw.DateTimeField(default=datetime.datetime.now)
@@ -28,6 +30,43 @@ class CachedRequest(MyModel):
     response_headers = pw.JSONField()
     response_body = pw.BlobField(help_text='If response_in_external_file, this contains a UTF-8 path to the file in the local filesystem')
     response_in_external_file = pw.BooleanField(default=False)
+
+    @classmethod
+    def new_from_response(cls, resp, store_in_file=False):
+        inst = cls()
+        req = resp.request
+        inst.method = req.method
+        base_url = req.url[:-len(req.path_url)]
+        path_url = req.path_url
+        inst.domain, _ = Domain.get_or_create(base_url=base_url)
+        inst.resource = path_url
+
+        body = req.body
+        if body is None:
+            inst.request_body = None
+        else:
+            if isinstance(body, str):
+                body = bytes(body, 'utf-8')
+            inst.request_body = body
+
+        inst.request_headers = req.headers
+        inst.response_headers = resp.headers
+        if store_in_file:
+            inst.response_in_external_file = True
+            path = os.path.join(os.getcwd(), 'files', str(uuid.uuid4()))
+            inst.response_body = bytes(path, 'utf-8')
+            os.makedirs(os.path.join(os.getcwd(), 'files'), exist_ok=True)
+            with open(path, 'wb') as handle:
+                for chunk in resp.iter_content(chunk_size=16384):
+                    handle.write(chunk)
+        else:
+            data = bytearray()
+            for byte in resp.iter_content():
+                data.extend(byte)
+            inst.response_body = bytes(data)
+
+        inst.save(force=True)
+        return inst
 
 @table
 class ScheduledDownloadJob(MyModel):
