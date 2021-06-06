@@ -1,5 +1,5 @@
 from flask import Flask
-from src.runner import process_scheduled_tasks
+from src.runner import process_scheduled_jobs
 import time
 
 app = Flask(__name__)
@@ -8,10 +8,10 @@ app = Flask(__name__)
 def hello():
     return "Hello, World!"
 
-@app.route("/scheduled-tasks/run")
+@app.route("/scheduled-jobs/run")
 def run_tasks():
     start = time.time()
-    process_scheduled_tasks()
+    process_scheduled_jobs()
     spent = time.time() - start
     return f'Processed tasks in {spent} seconds'
 

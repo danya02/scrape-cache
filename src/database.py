@@ -1,9 +1,14 @@
 import peewee as pw
+from playhouse.sqlite_ext import SqliteExtDatabase, JSONField
 import datetime
 import os
 import uuid
 
-dbase = pw.SqliteDatabase('cache.db')
+dbase = SqliteExtDatabase('cache.db', pragmas=(
+    ('cache_size', -1024 * 64),
+    ('journal_mode', 'wal'),
+    ('foreign_keys', 1)))
+
 
 class MyModel(pw.Model):
     class Meta:
@@ -23,11 +28,11 @@ class CachedRequest(MyModel):
     domain = pw.ForeignKeyField(Domain)
     resource = pw.CharField(help_text='/hello/world.png?variant=5')
     request_body = pw.BlobField(null=True)
-    request_headers = pw.JSONField()
+    request_headers = JSONField()
 
     access_time = pw.DateTimeField(default=datetime.datetime.now)
 
-    response_headers = pw.JSONField()
+    response_headers = JSONField()
     response_body = pw.BlobField(help_text='If response_in_external_file, this contains a UTF-8 path to the file in the local filesystem')
     response_in_external_file = pw.BooleanField(default=False)
 
@@ -68,6 +73,13 @@ class CachedRequest(MyModel):
         inst.save(force=True)
         return inst
 
+# from https://stackoverflow.com/a/29994957/5936187
+class classproperty(object):
+    def __init__(self, fget):
+        self.fget = fget
+    def __get__(self, owner_self, owner_cls):
+        return self.fget(owner_cls)
+
 @table
 class ScheduledDownloadJob(MyModel):
     failed = pw.BooleanField(default=False, help_text='Should this job be ignored when considering jobs to execute? Has this job failed too many times and been given up on?', index=True)
@@ -79,8 +91,7 @@ class ScheduledDownloadJob(MyModel):
     reschedules = pw.IntegerField(default=0, help_text='The job was rescheduled this many times.')
     max_reschedules = pw.IntegerField(default=20, help_text='How many times to reschedule the job before giving up.')
 
-    @property
-    @staticmethod
-    def executable_jobs():
-        return ScheduledDownloadJob.select().where(ScheduledDownloadJob.failed == False).where(ScheduledDownloadJob.run_at <= datetime.datetime.now())
+    @classproperty
+    def executable_jobs(cls):
+        return cls.select().where(ScheduledDownloadJob.failed == False).where(ScheduledDownloadJob.run_at <= datetime.datetime.now())
 

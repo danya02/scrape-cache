@@ -1,6 +1,6 @@
-from backoff import backoff_controllers
-from download import download_methods
-import database
+from .backoff import backoff_controllers
+from .download import download_methods
+from .database import ScheduledDownloadJob
 import traceback
 import datetime
 
@@ -39,5 +39,5 @@ def process_single_job(job):
         return
 
 def process_scheduled_jobs():
-    for job in database.ScheduledDownloadJob.executable_jobs:
+    for job in ScheduledDownloadJob.executable_jobs:
         process_single_job(job)
