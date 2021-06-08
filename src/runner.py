@@ -1,5 +1,5 @@
 from .backoff import backoff_controllers
-from .download import download_methods
+from .download import *
 from .database import ScheduledDownloadJob
 import traceback
 import datetime
@@ -16,8 +16,11 @@ def process_single_job(job):
         return
 
     try:
-        return func()
+        func()
+        print('Running job OK, deleting job record')
+        job.delete_instance()
     except Exception as e:
+        traceback.print_exc()
         print('Error while executing job function, trying to reschedule job...')
         try:
             backoff_ctrl = eval(job.backoff_controller, globals(), backoff_controllers)
@@ -29,7 +32,7 @@ def process_single_job(job):
             return
         interval = backoff_ctrl.get_interval(job, e)
         job.reschedules += 1
-        if job.reschedules >= max_reschedules:
+        if job.reschedules >= job.max_reschedules:
             print('Job was rescheduled too many times, marking job as failed.')
             job.failed = True
             job.save()

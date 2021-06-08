@@ -129,4 +129,5 @@ dmypy.json
 .pyre/
 
 # Work files
-cache.db
+cache.db*
+files/

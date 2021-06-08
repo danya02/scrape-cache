@@ -54,8 +54,8 @@ class CachedRequest(MyModel):
                 body = bytes(body, 'utf-8')
             inst.request_body = body
 
-        inst.request_headers = req.headers
-        inst.response_headers = resp.headers
+        inst.request_headers = dict(req.headers)
+        inst.response_headers = dict(resp.headers)
         if store_in_file:
             inst.response_in_external_file = True
             path = os.path.join(os.getcwd(), 'files', str(uuid.uuid4()))
@@ -70,7 +70,7 @@ class CachedRequest(MyModel):
                 data.extend(byte)
             inst.response_body = bytes(data)
 
-        inst.save(force=True)
+        inst.save(force_insert=True)
         return inst
 
 # from https://stackoverflow.com/a/29994957/5936187
@@ -95,3 +95,16 @@ class ScheduledDownloadJob(MyModel):
     def executable_jobs(cls):
         return cls.select().where(ScheduledDownloadJob.failed == False).where(ScheduledDownloadJob.run_at <= datetime.datetime.now())
 
+@table
+class ResourceNamespace(MyModel):
+    name = pw.CharField(unique=True, help_text='Unique namespace for the type of resource involved, preferably hierarchically arranged: com.example.forum.post')
+
+@table
+class Resource(MyModel):
+    namespace = pw.ForeignKeyField(ResourceNamespace)
+    res_id = pw.CharField(help_text='Unique serverside resource identifier')
+    fetched_at = pw.DateTimeField(default=datetime.datetime.now)
+    content = pw.BlobField()
+
+    class Meta:
+        primary_key = pw.CompositeKey('namespace', 'res_id')
