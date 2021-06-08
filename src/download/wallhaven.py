@@ -49,13 +49,16 @@ class WallhavenController(DownloadController):
                 for row in data['data']:
                     next(it)
                     url = row['path']
-                    scheduled_time += datetime.timedelta(seconds=random.random()*10)
-                    ScheduledDownloadJob.create(originally_scheduled_at=scheduled_time, run_at=scheduled_time, job_function=f'lambda: HttpController().perform_get({repr(url)}, store_in_file=True)')
+                    res_id = row['id']
+                    image_ns, _ = ResourceNamespace.get_or_create(name='cc.wallhaven.wallpaper.image')
+                    if Resource.get_or_none(namespace=image_ns, res_id=res_id):
+                       continue
+                    scheduled_time += datetime.timedelta(seconds=random.random()*5)
+                    ScheduledDownloadJob.create(originally_scheduled_at=scheduled_time, run_at=scheduled_time, job_function=f'SimpleFileResourceController({url!r}, {image_ns.name!r}, {res_id!r}).fetch')
 
                 if not data['data']:
                     raise StopIteration
 
         except StopIteration:
             return
-
 

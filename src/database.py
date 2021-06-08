@@ -105,6 +105,19 @@ class Resource(MyModel):
     res_id = pw.CharField(help_text='Unique serverside resource identifier')
     fetched_at = pw.DateTimeField(default=datetime.datetime.now)
     content = pw.BlobField()
+    content_in_external_file = pw.BooleanField(default=False)
 
     class Meta:
         primary_key = pw.CompositeKey('namespace', 'res_id')
+
+    @classmethod
+    def from_cached_request(cls, cached_req, namespace, res_id):
+        existing = cls.get_or_none(namespace=namespace, res_id=res_id)
+        if existing:
+            existing.fetched_at = datetime.datetime.now()
+            existing.content = cached_req.response_body
+            existing.content_in_external_file = cached_req.response_in_external_file
+            existing.save()
+            return existing
+        else:
+            return cls.create(namespace=namespace, res_id=res_id, content=cached_req.response_body, content_in_external_file=cached_req.response_in_external_file)

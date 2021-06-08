@@ -42,5 +42,8 @@ def process_single_job(job):
         return
 
 def process_scheduled_jobs():
+    processed = 0
     for job in ScheduledDownloadJob.executable_jobs:
         process_single_job(job)
+        processed += 1
+    return processed
